@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Actualización de Política de Archivos</title>
+</head>
+
+<body>
+    <table
+        style="width: 100%; max-width: 600px; margin: 0 auto; border-collapse: collapse; font-family: Arial, sans-serif;">
+        <tr>
+            <td colspan="2" style="padding: 15px 20px; font-size: 24px;">
+                Estimado/a usuario <b style="color: #20A8D8;">{{nombre_destinatario}}</b>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2" style="padding: 15px 20px; font-size: 16px;">
+                Espero que este mensaje te encuentre bien.
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2" style="padding: 15px 20px; font-size: 16px;">
+                Queremos informarte sobre una actualización en nuestra política de limpieza y organización de archivos
+                en las carpetas públicas y compartidas que utilizamos en nuestra red. Realizaremos una revisión y
+                mantenimiento de los archivos para optimizar el espacio y facilitar la localización de información
+                relevante para todos.
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2" style="padding: 15px 20px; font-size: 16px;">
+                En esta ocasión, nos centraremos en los archivos y carpetas existentes en la ruta <b>{{ruta_seleccionada}}</b> que tienen más de <b>{{años}}</b>{% if años > 1 %} años{% else %} año{% endif %} de antigüedad de modificación y de los cuales sos propietario. Los archivos
+                que están bajo revisión y serán eliminados se encuentran listados a continuación.                
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2" style="padding: 15px 20px; font-size: 16px; font-weight: 700;">
+                Por favor, revisa
+                    detenidamente esta lista y asegúrate de que los archivos que necesitas no estén incluidos. En caso de
+                    ser importantes, da aviso <span style="color: #20A8D8;">respondiendo a todos</span> este correo y utilizando la columna <span style="color: #20A8D8;">'Acción a tomar'</span> o bien movelos para que no sean eliminados.
+            </td>
+        </tr>
+        {% if not dataframe.empty %}
+        <tr>
+            <td colspan="2" style="padding: 15px 20px; font-size: 16px;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 16px;">
+                    <thead>
+                        <tr>
+                            <th style="border: 1px solid black; padding: 8px;">Nombre</th>
+                            <th style="border: 1px solid black; padding: 8px;">Fecha de Modificación</th>
+                            <th style="border: 1px solid black; padding: 8px;">Tipo de Archivo</th>
+                            <th style="border: 1px solid black; padding: 8px;">Acción a tomar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in dataframe -%}
+                        <tr>
+                            <td style="border: 1px solid black; padding: 8px;">{{ row['nombre'] }}</td>
+                            <td style="border: 1px solid black; padding: 8px;">{{ row['fecha_modificacion'] }}</td>
+                            <td style="border: 1px solid black; padding: 8px;">{{ row['tipo_archivo'] }}</td>
+                            <td style="border: 1px solid black; padding: 8px;"></td>
+                        </tr>
+                        {%- endfor %}
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="2" style="padding: 15px 20px; font-size: 16px;">
+                No hay datos disponibles.
+            </td>
+        </tr>
+        {% endif %}
+        <tr>
+            <td colspan="2" style="padding: 15px 20px; font-size: 18px; font-weight: 700;">
+                Fecha límite para tomar acción: {{fecha_limite}}.<br>
+                <span style="color: #20A8D8; text-decoration: underline; font-size: 16px;">Nota: Pasada la fecha límite, los archivos serán eliminados automáticamente.</span>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2" style="padding: 15px 20px; font-size: 16px;">
+                Recordamos la existencia de la plataforma <a href="http://docs.nobleseguros.com" style="color: #20A8D8; font-weight: 600;">docs.nobleseguros<a> para que puedas cargar los archivos que consideres importantes, como instructivos, manuales, etc. 
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2" style="padding: 15px 20px; font-size: 16px;">
+                Si tenes alguna pregunta o necesitas asistencia para identificar los archivos que serán eliminados, no
+                dudes en contactar a nuestro equipo de sistemas o bien respondiendo a todos sobre este correo.
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2" style="padding: 15px 20px; font-size: 16px;">
+                Agradecemos tu colaboración y comprensión en este proceso. Tu contribución será clave para mantener
+                nuestra red organizada para todos los usuarios.<br><b style="color: #20A8D8;">Y un paso más cerca de la transformación digital que nos proponemos.</b>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2" style="padding: 15px 20px; text-align: right; font-size: 16px; font-style: italic;">
+                Atentamente,<br>
+                <b style="color: #20A8D8;">Noble Cia. Seguros - Sistemas</b>
+            </td>
+        </tr>
+    </table>
+</body>
+
+</html>

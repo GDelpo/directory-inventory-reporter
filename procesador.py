@@ -1,109 +1,8 @@
-import time
-import logging
-import win32security
-from pathlib import Path
+import datetime
 import pandas as pd
 
-# Configura la configuración de registro, como el nombre del archivo y el nivel de registro
-logging.basicConfig(filename='error.log', level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
-
-
-def obtener_propietario_archivo(nombre_archivo):
-    """
-    Obtiene el propietario de un archivo en Windows.
-
-    Args:
-        nombre_archivo (Path obj): El nombre o la ruta del archivo.
-    Returns: 
-        str: El nombre del propietario del archivo o una cadena vacía si no se puede determinar.
-    """
-    propietario = ""
-    try:
-        nombre_archivo = nombre_archivo.resolve()  # Resuelve rutas absolutas y simbólicas.
-        # Obtener la información de seguridad del archivo, incluyendo el propietario.
-        sd = win32security.GetFileSecurity(str(nombre_archivo), win32security.OWNER_SECURITY_INFORMATION)
-        
-        # Obtener el SID del propietario.
-        sid_propietario = sd.GetSecurityDescriptorOwner()
-        
-        # Obtener la cuenta del propietario en formato (nombre, dominio, tipo).
-        cuenta_propietario = win32security.LookupAccountSid(None, sid_propietario)
-        
-        # Obtener el nombre del propietario.
-        propietario = cuenta_propietario[0]
-    except FileNotFoundError as e:
-        # Registra el error en lugar de imprimirlo directamente
-        logging.error(f"El archivo no se encontró: {nombre_archivo}")
-    except PermissionError as e:
-        # Registra el error en lugar de imprimirlo directamente
-        logging.error(f"No tiene permiso para acceder al archivo: {nombre_archivo}")
-    except Exception as e:
-        # Registra el error en lugar de imprimirlo directamente
-        logging.error(f"Error al obtener el propietario del archivo {nombre_archivo}: {e}")
-    return propietario
-
-    
-def obtener_fecha_modificacion_archivo_o_directorio(ruta_archivo_o_directorio):
-    """
-    Obtiene la fecha de modificación de un archivo o directorio en un formato legible.
-
-    Args:
-        ruta_archivo_o_directorio (str): La ruta al archivo o directorio del cual se quiere obtener la fecha de modificación.
-
-    Returns:
-        str: La fecha de modificación en formato 'dd-mm-YYYY' o None si ocurre un error.
-    """
-    fecha_modificacion = None
-    try:
-        ruta_archivo_o_directorio = Path(ruta_archivo_o_directorio).resolve()  # Resuelve rutas absolutas y simbólicas.
-        if ruta_archivo_o_directorio.exists():
-            # Obtener la fecha de modificación en un formato legible
-            info_estado = ruta_archivo_o_directorio.lstat()
-            fecha_modificacion = time.strftime('%d-%m-%Y', time.localtime(info_estado.st_mtime))
-    except FileNotFoundError as e:
-        # Registra el error en lugar de imprimirlo directamente
-        logging.error(f"El archivo o directorio no se encontró: {ruta_archivo_o_directorio}")
-    except PermissionError as e:
-        # Registra el error en lugar de imprimirlo directamente
-        logging.error(f"No tiene permiso para acceder al archivo o directorio: {ruta_archivo_o_directorio}")
-    except Exception as e:
-        # Registra el error en lugar de imprimirlo directamente
-        logging.error(f"Error al obtener la fecha de modificación del archivo o directorio {ruta_archivo_o_directorio}: {e}")
-    return fecha_modificacion
-
-def obtener_info_archivo(elemento):
-    tipo_archivo = 'Es una carpeta' if elemento.is_dir() else elemento.suffix
-    return {
-        "nombre": elemento.name,
-        "fecha_modificacion": obtener_fecha_modificacion_archivo_o_directorio(elemento),
-        "propietario": obtener_propietario_archivo(elemento),
-        "tipo_archivo": tipo_archivo
-    }
-
-def obtener_listado_archivos(directorio_padre):
-    """
-    Obtiene información sobre los archivos en un directorio.
-
-    Args:
-        directorio_padre (str): Ruta del directorio que deseas listar.
-
-    Returns:
-        list: Una lista de diccionarios con información de los archivos.
-    """
-    directorio_a_recorrer = Path(directorio_padre)
-    info_directorio = []
-
-    try:
-        # Comprobar si la ruta es un directorio
-        if directorio_a_recorrer.is_dir():
-            for elemento in directorio_a_recorrer.iterdir():
-                info_directorio.append(obtener_info_archivo(elemento))
-        else:
-            logging.error("La ruta no es un directorio.")
-    except OSError as e:
-        logging.error(f"Error al acceder al directorio: {str(e)}")
-
-    return info_directorio
+from logger import info_logger
+from utils import obtener_listado_archivos
 
 def dividir_df_por_propietario(dataframe):
     """
@@ -126,10 +25,16 @@ def dividir_df_por_propietario(dataframe):
 
     # Organiza por tipo de archivo y luego por fecha
     con_propietario = con_propietario.sort_values(by=['propietario', 'tipo_archivo', 'fecha_modificacion'])
+    
+    # Volver a formatear la columna 'fecha_modificacion' al formato 'dd-mm-año' para el usuario final
+    con_propietario['fecha_modificacion'] = con_propietario['fecha_modificacion'].dt.strftime('%d-%m-%Y')
 
     # Usa groupby para dividir el DataFrame por propietario
     for propietario, grupo in con_propietario.groupby('propietario'):
-        diccionario_por_propietario[propietario] = grupo.copy()
+        diccionario_por_propietario[propietario] = {
+            "dataframe": grupo.copy(),
+            "mail": None
+        }
 
     diccionario_por_propietario['totalizador'] = obtener_totalizador(diccionario_por_propietario)
     diccionario_por_propietario['sin propietario'] = sin_propietario
@@ -148,12 +53,16 @@ def obtener_totalizador(diccionario_por_propietario):
     """
     lista_totalizador = []
     
-    for propietario, dataframe in diccionario_por_propietario.items():
+    for propietario, data in diccionario_por_propietario.items():
         if propietario not in ('totalizador', 'sin propietario'):
-            num_filas = len(dataframe)
-            lista_totalizador.append((propietario, num_filas))
+            num_filas = len(data['dataframe'])  # Accede al DataFrame dentro del diccionario por propietario
+            if (data['dataframe']['peso_en_mbs'] != 0).any() and not data['dataframe'].empty:
+                total_peso = data['dataframe']['peso_en_mbs'].sum()
+            else:
+                total_peso = 'Solo hay archivos sin peso asignado'
+            lista_totalizador.append((propietario, num_filas, total_peso))
     
-    totalizador_df = pd.DataFrame(lista_totalizador, columns=['Propietario', 'Cantidad de registros en total'])
+    totalizador_df = pd.DataFrame(lista_totalizador, columns=['Propietario', 'Cantidad de registros en total', 'Peso total en MB'])
     totalizador_df = totalizador_df.sort_values(by='Propietario')
     
     return totalizador_df
@@ -181,7 +90,7 @@ def ordenar_claves(diccionario):
 
     return claves_ordenadas
 
-def exportar_diccionario_a_excel(diccionario, orden_claves, nombre_archivo='informe_directorio.xlsx'):
+def exportar_diccionario_a_excel(diccionario, orden_claves, nombre_archivo='static/informe_directorio.xlsx'):
     """
     Exporta un diccionario de DataFrames a un archivo de Excel con hojas ordenadas según una lista de claves.
 
@@ -193,8 +102,11 @@ def exportar_diccionario_a_excel(diccionario, orden_claves, nombre_archivo='info
     # Crear un nuevo libro de Excel
     with pd.ExcelWriter(nombre_archivo, engine='openpyxl') as escritor_excel:
         for clave in orden_claves:
-            # Obtener el DataFrame para este propietario
-            dataframe = diccionario[clave]
+            if clave == 'totalizador' or clave == 'sin propietario':
+                dataframe = diccionario[clave]
+            else:
+                # Obtener el DataFrame para este propietario
+                dataframe = diccionario[clave]["dataframe"]
 
             # Reemplazar los espacios en blanco en los nombres de las hojas por guiones bajos
             nombre_hoja = clave.replace(' ', '_')
@@ -202,22 +114,85 @@ def exportar_diccionario_a_excel(diccionario, orden_claves, nombre_archivo='info
             # Escribir el DataFrame en la hoja correspondiente
             dataframe.to_excel(escritor_excel, sheet_name=nombre_hoja, index=False)
 
-def generar_reporte_directorio(ruta_seleccionada):
+def obtener_correo_usuario(diccionario_usuarios, nombres_a_buscar):
+    """
+    Esta función busca los correos electrónicos de los usuarios especificados en un diccionario.
+
+    Args:
+        diccionario_usuarios (dict): Un diccionario que contiene información de los usuarios.
+        nombres_a_buscar (list): Una lista de nombres de usuarios a buscar.
+
+    Returns:
+        dict: Un diccionario actualizado con los correos electrónicos encontrados para los usuarios.
+    """
+    # Cargar el archivo .xlsx en un DataFrame (esto podría realizarse fuera de la función si se llama repetidamente)
+    df_cuentas = pd.read_excel('./static/fuente/cuentas_red_mail.xlsx')
+
+    for nombre_usuario in nombres_a_buscar:
+        # Verificar si el nombre de usuario está presente en la columna 'samaccountname' del DataFrame
+        if nombre_usuario in df_cuentas['samaccountname'].values:
+            # Obtener el correo electrónico del usuario
+            correo_usuario = str(df_cuentas[df_cuentas['samaccountname'] == nombre_usuario]["EmailAddress"].values[0]).lower()
+            # Agregar el correo electrónico al diccionario de usuarios
+            diccionario_usuarios.setdefault(nombre_usuario, {})["mail"] = correo_usuario
+            
+    return diccionario_usuarios
+
+def filtrar_por_fecha(df, anios):
+    """
+    Filtra un DataFrame por fecha de modificación.
+
+    Args:
+        df (pandas.DataFrame): DataFrame que contiene la columna 'fecha_modificacion'.
+        anios (int): Número de años para filtrar el DataFrame.
+
+    Returns:
+        pandas.DataFrame: DataFrame filtrado con las filas cuya fecha de modificación
+                          sea anterior a 'anios' años desde la fecha actual.
+    """
+    # Calcular la fecha límite (hoy menos 'años' años)
+    fecha_limite = datetime.datetime.now() - datetime.timedelta(days=365 * anios)
+
+    # Filtrar el DataFrame para mantener solo las filas con fecha de modificación anterior a la fecha límite
+    df_filtrado = df[df['fecha_modificacion'] < fecha_limite]
+
+    return df_filtrado
+
+def generar_reporte_directorio(ruta_seleccionada, anios, fecha_limite):
+    
+    # Crear un logger para la información del proceso
+    info_logger.info(f"Generando reporte para la ruta: {ruta_seleccionada}")
+    info_logger.info(f"Fecha límite para la revisión: {fecha_limite}")
+    info_logger.info(f"Años de antigüedad sobre la fecha de modificación: {anios}")
 
     # Obtener una lista de archivos de la ruta 
     lista_archivos = obtener_listado_archivos(ruta_seleccionada)
 
     # Crear un DataFrame a partir de la lista de diccionarios
-    df = pd.DataFrame(lista_archivos)
+    df_listado_archivos = pd.DataFrame(lista_archivos)
 
+    # Filtramos el df original con la cantidad maxima de años que queremos obtener, caso que no se requiera dicho filtro se comenta esta linea.
+    df_listado_archivos = filtrar_por_fecha(df_listado_archivos, anios)
+
+    # Exportar la ruta de los archivos a un archivo CSV
+    df_listado_archivos['nombre'].to_csv('static/fuente/nombre_archivos.csv', index=False)
+    
     # Dividir el DataFrame por propietario
-    diccionario_por_propietario = dividir_df_por_propietario(df)
+    diccionario_por_propietario = dividir_df_por_propietario(df_listado_archivos)
 
     # Obtener las claves ordenadas del diccionario
     claves_ordenadas = ordenar_claves(diccionario_por_propietario)
 
+    # Obtenemos los correos de los usuarios presentes en el diccionario en base a un excel generado por Leo
+    diccionario_por_propietario = obtener_correo_usuario(diccionario_por_propietario, claves_ordenadas)
+
     # Llamar al método exportar_diccionario_a_excel pasando el diccionario, las claves ordenadas y el nombre de archivo como argumentos
     exportar_diccionario_a_excel(diccionario_por_propietario, claves_ordenadas)
+
+    return diccionario_por_propietario
+    
+    
+    
 
     
 

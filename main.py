@@ -1,43 +1,19 @@
-import tkinter as tk
-from tkinter import filedialog
-from tkinter import messagebox
+# Definir la cantidad de años de antigüedad para filtrar los archivos
+from mailer import descomponer_diccionario, enviar_correos_a_personas
 from procesador import generar_reporte_directorio
+import datetime as dt
 
-def elegir_ruta():
-    ruta = filedialog.askdirectory()
-    if ruta:
-        ruta_elegida.set(f"Ruta elegida: {ruta}")
-        btn_lanzar_informe.config(state=tk.NORMAL)
+def main(ruta_seleccionada):
 
-def lanzar_informe():
-    ruta_seleccionada = ruta_elegida.get()
-    # Elimina el texto "Ruta elegida: " al principio de la cadena
-    ruta_seleccionada = ruta_seleccionada.replace("Ruta elegida: ", "")
-    if ruta_seleccionada:
-        generar_reporte_directorio(ruta_seleccionada)  # Llama a la función con la ruta seleccionada
-        messagebox.showinfo("Info", "Se finalizó el proceso con éxito")
-        ruta_elegida.set(None)  # Limpia la variable para futuros usos
-        ruta_elegida.set("Ruta elegida: ")
-        btn_lanzar_informe.config(state=tk.DISABLED)
-    else:
-        # Manejo de error si no se ha seleccionado una ruta
-        messagebox.showerror("Error", "Primero, elija una ruta.")
+    AÑOS = 2
+    FECHA_LIMITE = (dt.datetime.now() + dt.timedelta(days=30)).strftime('%d-%m-%Y')
+   #ruta_seleccionada = 'C:/Users/Usuario/Desktop/Prueba'
 
-if __name__ == "__main__":
+    diccionario = generar_reporte_directorio(ruta_seleccionada, AÑOS, FECHA_LIMITE)
+
+    lista_correos_a_enviar = descomponer_diccionario(diccionario, ruta_seleccionada, AÑOS, FECHA_LIMITE)
+
+    if lista_correos_a_enviar.__len__() > 0:
+        enviar_correos_a_personas(lista_correos_a_enviar)
+
     
-    app = tk.Tk()
-    app.title("Seleccionar Directorio")
-
-    ruta_elegida = tk.StringVar()
-    ruta_elegida.set("Ruta elegida: ")
-
-    label_ruta = tk.Label(app, textvariable=ruta_elegida)
-    label_ruta.pack(pady=10)
-
-    btn_elegir_ruta = tk.Button(app, text="Elegir Ruta", command=elegir_ruta)
-    btn_elegir_ruta.pack()
-
-    btn_lanzar_informe = tk.Button(app, text="Lanzar Informe", state=tk.DISABLED, command=lanzar_informe)
-    btn_lanzar_informe.pack(pady=10)
-
-    app.mainloop()

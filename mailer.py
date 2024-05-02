@@ -88,6 +88,5 @@ def enviar_correos_a_personas(lista_correos_a_enviar):
             info_logger.info(f'Correo enviado a: {correo_persona}')
     if enviados == len(lista_correos_a_enviar):
         info_logger.info(f'Correos enviados correctamente: {enviados} de {len(lista_correos_a_enviar)}')
-        info_logger.info(f"{'-'*50}")        
     else:
         error_logger.error(f'Error al enviar correos. Correos enviados: {enviados} de {len(lista_correos_a_enviar)}')

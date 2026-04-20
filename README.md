@@ -1,39 +1,68 @@
-# README - Proyecto de Generación de Informes de Directorios
+# directory-inventory-reporter
 
-Este proyecto consta de dos archivos principales: `main.py` y `procesador.py`. Su objetivo es permitir a los usuarios seleccionar un directorio en su sistema de archivos y generar un informe detallado de los archivos contenidos en ese directorio, organizados por propietario y otros detalles relevantes. A continuación, se describen los componentes y la funcionalidad del proyecto:
+<p>
+  <img alt="Python" src="https://img.shields.io/badge/python-3.9%2B-blue?logo=python&logoColor=white">
+  <img alt="Platform" src="https://img.shields.io/badge/platform-Windows-informational?logo=windows">
+  <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
+  <img alt="Status" src="https://img.shields.io/badge/status-stable-green">
+</p>
 
-## Estructura de Archivos
-- `main.py`: Este archivo contiene la interfaz de usuario desarrollada con la biblioteca `tkinter` de Python. Permite al usuario seleccionar un directorio y lanzar el proceso de generación del informe.
-- `procesador.py`: En este archivo se encuentra la lógica principal para la generación del informe. Se encarga de obtener información sobre los archivos en el directorio seleccionado, incluyendo detalles como el propietario, la fecha de modificación y el tipo de archivo. Además, organiza esta información y la exporta a un archivo de Excel.
+> Escanea un directorio de Windows, agrupa archivos por propietario (ACL NTFS) y exporta un reporte Excel con una hoja por propietario. GUI Tkinter + opcional envÃ­o por email.
 
-## Funcionalidad
-El proyecto permite al usuario realizar las siguientes acciones:
+## Features
 
-1. Seleccionar un directorio en el sistema de archivos a través de la interfaz de usuario.
-2. Generar un informe que incluye información detallada de los archivos en el directorio seleccionado, organizados por propietario y otros detalles relevantes.
-3. Exportar este informe a un archivo de Excel con hojas separadas para cada propietario, incluyendo una hoja adicional para archivos sin propietario definido.
+- Selector de carpeta via GUI Tkinter â€” un click para elegir y lanzar.
+- ExtracciÃ³n de propietario por archivo usando `win32security` (ACL NTFS).
+- Agrupa archivos por propietario en hojas separadas del Excel.
+- Hoja extra para archivos sin propietario resuelto.
+- Logging a `error.log` de permisos denegados u otros problemas.
+- (Opcional) EnvÃ­o del Excel por email al terminar â€” ver `mailer.py`.
 
-## Uso del Proyecto
-Para utilizar el proyecto, siga los siguientes pasos:
+## Requirements
 
-1. Ejecute el archivo `main.py`. Esto abrirá la interfaz de usuario.
-2. Haga clic en el botón "Elegir Ruta" para seleccionar el directorio del cual desea generar el informe.
-3. Una vez seleccionado el directorio, el botón "Lanzar Informe" estará habilitado. Haga clic en este botón para generar el informe.
-4. El informe se generará en un archivo de Excel llamado "informe_directorio.xlsx" y se organizará por propietario y otros detalles relevantes.
+- Python 3.9+
+- **Windows** (el ownership se resuelve con `pywin32` y no tiene equivalente cross-platform).
 
-## Requisitos
-El proyecto requiere la instalación de las siguientes bibliotecas de Python:
+## Quickstart
 
-- `tkinter`: Para la interfaz de usuario.
-- `pandas`: Para el manejo de datos y generación del informe en Excel.
-- `win32security`: Para obtener información sobre el propietario de los archivos en sistemas Windows.
+### Install
 
-Puede instalar estas bibliotecas a través de la herramienta `pip` si aún no están instaladas.
+```bash
+git clone https://github.com/GDelpo/directory-inventory-reporter.git
+cd directory-inventory-reporter
+python -m venv env
+.\env\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
 
-## Personalización
-El proyecto se puede personalizar según las necesidades específicas. Por ejemplo, puede modificar la lógica de organización de archivos en el informe o cambiar el nombre del archivo de salida. También puede personalizar el formato del informe en Excel según sus preferencias.
+### Run
 
-## Problemas Conocidos
-El proyecto maneja adecuadamente errores como archivos no encontrados o permisos insuficientes y registra estos errores en un archivo de registro llamado "error.log". Si encuentra problemas durante el uso, consulte este archivo para obtener más detalles sobre los errores.
+```bash
+python main.py
+```
 
-¡Gracias por utilizar este proyecto! Si tiene alguna pregunta o desea realizar mejoras, no dude en modificar el código o ponerse en contacto con el desarrollador."# pyhton_reporte_direcotrio" 
+1. Click "Elegir Ruta" y seleccionÃ¡ el directorio raÃ­z.
+2. Click "Lanzar Informe" â€” genera `informe_directorio.xlsx` en el directorio actual.
+
+## Configuration
+
+Ver `.env.example` si usÃ¡s el envÃ­o por email; si no, la herramienta corre sin configuraciÃ³n.
+
+## Architecture
+
+```
+directory-inventory-reporter/
+â”œâ”€â”€ main.py                   # Entrypoint con wiring del workflow
+â”œâ”€â”€ gui.py                    # Interfaz Tkinter
+â”œâ”€â”€ procesador.py             # Escaneo + agrupaciÃ³n
+â”œâ”€â”€ gestionador_rutas.py      # Helpers para manejo de paths
+â”œâ”€â”€ mailer.py                 # EnvÃ­o del Excel por email (opcional)
+â”œâ”€â”€ logger.py                 # Setup de logging
+â””â”€â”€ utils.py
+```
+
+**Stack:** Tkinter (stdlib) + `pandas` + `openpyxl` + `pywin32` (`win32security`).
+
+## License
+
+[MIT](LICENSE) Â© 2026 Guido Delponte
